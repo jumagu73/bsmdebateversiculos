@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BSM · Versículo al azar</title>
+<style>
+  :root{
+    --bg:#0f0f13;
+    --card:#1a1a22;
+    --accent:#ff3d6e;
+    --accent2:#3ddcff;
+    --text:#f2f2f7;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{
+    min-height:100vh;
+    display:flex; flex-direction:column;
+    align-items:center; justify-content:center;
+    gap:1.8rem;
+    background:radial-gradient(circle at 20% 20%, #1f1f2b, var(--bg) 60%);
+    color:var(--text);
+    font-family:system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    padding:2rem;
+    text-align:center;
+  }
+  h1{font-size:clamp(1.5rem, 4vw, 2.4rem); letter-spacing:.05em; text-transform:uppercase;}
+  h1 span{color:var(--accent);}
+  .sub{opacity:.6; font-size:.95rem; margin-top:.4rem;}
+  .card{
+    width:100%;
+    max-width:760px;
+    min-height:260px;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:1.2rem;
+    padding:2.5rem 2rem;
+    background:var(--card);
+    border-radius:28px;
+    border:2px solid var(--accent);
+    transition:transform .25s ease, border-color .25s ease;
+    position:relative;
+    overflow:hidden;
+  }
+  .card::before{
+    content:"";
+    position:absolute; inset:0;
+    background:linear-gradient(135deg, rgba(255,61,110,.15), rgba(61,220,255,.15));
+    opacity:0; transition:opacity .3s;
+  }
+  .card:hover::before{opacity:1;}
+  .card .contenido{
+    font-size:clamp(1.25rem, 3vw, 1.9rem);
+    font-weight:500;
+    font-style:italic;
+    line-height:1.45;
+    letter-spacing:.01em;
+  }
+  .card .ref{font-size:1rem; opacity:.55; font-style:italic; transition:opacity .3s;}
+  .card .ref.oculta{opacity:0;}
+  .card.pop{animation:pop .5s ease;}
+  @keyframes pop{
+    0%{transform:scale(.9); opacity:.3;}
+    60%{transform:scale(1.03);}
+    100%{transform:scale(1); opacity:1;}
+  }
+  .acciones{display:flex; flex-wrap:wrap; gap:1rem; justify-content:center;}
+  button.principal{
+    cursor:pointer;
+    font-size:1.1rem;
+    font-weight:700;
+    letter-spacing:.08em;
+    text-transform:uppercase;
+    padding:1.1rem 2.6rem;
+    border:none;
+    border-radius:999px;
+    color:#0f0f13;
+    background:linear-gradient(90deg, var(--accent), var(--accent2));
+    transition:transform .15s ease, box-shadow .15s ease;
+    box-shadow:0 8px 30px rgba(255,61,110,.35);
+  }
+  button.secundario{
+    cursor:pointer;
+    font-size:1.05rem;
+    font-weight:700;
+    letter-spacing:.08em;
+    text-transform:uppercase;
+    padding:1rem 2.2rem;
+    border-radius:999px;
+    background:transparent;
+    color:var(--text);
+    border:2px solid #ffffff33;
+    transition:transform .15s ease;
+  }
+  button:hover{transform:translateY(-2px) scale(1.03);}
+  button:active{transform:scale(.97);}
+  .progreso{opacity:.5; font-size:.85rem;}
+</style>
+</head>
+<body>
+
+  <header>
+    <h1>BSM <span>·</span> Versículo al azar</h1>
+    <p class="sub">Sale un versículo al azar. El equipo se arregla para hablar de eso.</p>
+  </header>
+
+  <main class="card" id="card">
+    <span class="contenido">—</span>
+    <span class="ref oculta"></span>
+  </main>
+
+  <div class="acciones">
+    <button id="btn" class="principal">Tirar versículo</button>
+    <button id="btnRef" class="secundario">Mostrar referencia</button>
+  </div>
+
+  <p class="progreso" id="progreso"></p>
+
+<script>
+  // ============ VERSÍCULOS CURADOS (~300) ============
+  const VERSICULOS = [
+    // Génesis
+    { t:"Y dijo Dios: Sea la luz; y fue la luz.", r:"Génesis 1:3" },
+    { t:"No es bueno que el hombre esté solo.", r:"Génesis 2:18" },
+    { t:"¿Dónde estás tú?", r:"Génesis 3:9" },
+    { t:"¿Por qué te has ensañado contra mí? ¿Acaso soy yo guarda de mi hermano?", r:"Génesis 4:9" },
+    { t:"Y creyó a Jehová, y le fue contado por justicia.", r:"Génesis 15:6" },
+    { t:"¿Hay para Dios alguna cosa difícil?", r:"Génesis 18:14" },
+    { t:"Jehová proveerá.", r:"Génesis 22:14" },
+    { t:"No temas, porque yo estoy contigo.", r:"Génesis 26:24" },
+    { t:"Vosotros pensasteis mal contra mí, mas Dios lo encaminó a bien.", r:"Génesis 50:20" },
+    // Éxodo
+    { t:"YO SOY EL QUE SOY.", r:"Éxodo 3:14" },
+    { t:"No tendrás dioses ajenos delante de mí.", r:"Éxodo 20:3" },
+    { t:"Honra a tu padre y a tu madre, para que tus días se alarguen en la tierra.", r:"Éxodo 20:12" },
+    { t:"No matarás.", r:"Éxodo 20:13" },
+    { t:"No hurtarás.", r:"Éxodo 20:15" },
+    { t:"No dirás falso testimonio contra tu prójimo.", r:"Éxodo 20:16" },
+    // Levítico / Números / Deuteronomio
+    { t:"Amarás a tu prójimo como a ti mismo.", r:"Levítico 19:18" },
+    { t:"El Señor es lento para la ira y grande en misericordia.", r:"Números 14:18" },
+    { t:"No solo de pan vivirá el hombre, sino de todo lo que sale de la boca de Jehová.", r:"Deuteronomio 8:3" },
+    { t:"Circuncidad, pues, el prepucio de vuestro corazón.", r:"Deuteronomio 10:16" },
+    { t:"Escoge, pues, la vida, para que vivas tú y tu descendencia.", r:"Deuteronomio 30:19" },
+    { t:"Las cosas secretas pertenecen a Jehová nuestro Dios; mas las reveladas son para nosotros.", r:"Deuteronomio 29:29" },
+    // Josué / Jueces / Rut
+    { t:"Esfuérzate y sé valiente; no temas ni desmayes, porque Jehová tu Dios estará contigo dondequiera que vayas.", r:"Josué 1:9" },
+    { t:"Yo y mi casa serviremos a Jehová.", r:"Josué 24:15" },
+    { t:"Donde tú fueres, iré yo, y donde tú morares, moraré.", r:"Rut 1:16" },
+    // Samuel / Reyes
+    { t:"Jehová no mira lo que mira el hombre; pues el hombre mira lo que está delante de sus ojos, pero Jehová mira el corazón.", r:"1 Samuel 16:7" },
+    { t:"El obedecer es mejor que los sacrificios.", r:"1 Samuel 15:22" },
+    { t:"Jehová es mi roca y mi fortaleza, y mi libertador.", r:"2 Samuel 22:2" },
+    { t:"Guarda tu corazón más que todas las cosas, porque de él mana la vida.", r:"Proverbios 4:23" },
+    // Salmos
+    { t:"Bienaventurado el varón que no anduvo en consejo de malos.", r:"Salmos 1:1" },
+    { t:"Jehová es mi pastor; nada me faltará.", r:"Salmos 23:1" },
+    { t:"Aunque ande en valle de sombra de muerte, no temeré mal alguno, porque tú estarás conmigo.", r:"Salmos 23:4" },
+    { t:"El Señor es mi luz y mi salvación; ¿de quién temeré?", r:"Salmos 27:1" },
+    { t:"Deléitate asimismo en Jehová, y él te concederá las peticiones de tu corazón.", r:"Salmos 37:4" },
+    { t:"Dios es nuestro amparo y fortaleza, nuestro pronto auxilio en las tribulaciones.", r:"Salmos 46:1" },
+    { t:"Crea en mí, oh Dios, un corazón limpio, y renueva un espíritu recto dentro de mí.", r:"Salmos 51:10" },
+    { t:"Echa sobre Jehová tu carga, y él te sustentará.", r:"Salmos 55:22" },
+    { t:"Mi alma tiene sed de Dios, del Dios vivo.", r:"Salmos 42:2" },
+    { t:"Lámpara es a mis pies tu palabra, y lumbrera a mi camino.", r:"Salmos 119:105" },
+    { t:"En mi angustia invoqué a Jehová, y clamé a mi Dios.", r:"Salmos 18:6" },
+    { t:"Los cielos cuentan la gloria de Dios, y el firmamento anuncia la obra de sus manos.", r:"Salmos 19:1" },
+    { t:"¿Quién es el hombre para que de él te acuerdes?", r:"Salmos 8:4" },
+    { t:"Mejor es un día en tus atrios que mil fuera de ellos.", r:"Salmos 84:10" },
+    { t:"Enséñanos de tal modo a contar nuestros días, que traigamos al corazón sabiduría.", r:"Salmos 90:12" },
+    { t:"Jehová reina; regocíjese la tierra.", r:"Salmos 97:1" },
+    { t:"Alabad a Jehová, porque él es bueno; porque para siempre es su misericordia.", r:"Salmos 136:1" },
+    { t:"Porque tú formaste mis entrañas; tú me hiciste en el vientre de mi madre.", r:"Salmos 139:13" },
+    // Proverbios
+    { t:"El temor de Jehová es el principio de la sabiduría.", r:"Proverbios 1:7" },
+    { t:"Confía en Jehová con todo tu corazón, y no te apoyes en tu propia prudencia.", r:"Proverbios 3:5" },
+    { t:"Reconócelo en todos tus caminos, y él endereza tus sendas.", r:"Proverbios 3:6" },
+    { t:"El que tiene envidia es podrido en sus huesos.", r:"Proverbios 14:30" },
+    { t:"Antes del quebrantamiento es la soberbia, y antes de la caída la altivez de espíritu.", r:"Proverbios 16:18" },
+    { t:"Mejor es vivir en un rincón del terrado que con mujer rencillosa en casa espaciosa.", r:"Proverbios 21:9" },
+    { t:"El que cierra su oído al clamor del pobre, también él clamará, y no será oído.", r:"Proverbios 21:13" },
+    { t:"Instruye al niño en su camino, y aun cuando fuere viejo no se apartará de él.", r:"Proverbios 22:6" },
+    { t:"El que confía en sus riquezas caerá; mas los justos reverdecerán como ramas.", r:"Proverbios 11:28" },
+    { t:"El hombre que tiene amigos ha de mostrarse amigo; y amigo hay más unido que un hermano.", r:"Proverbios 18:24" },
+    { t:"La muerte y la vida están en poder de la lengua.", r:"Proverbios 18:21" },
+    { t:"El que anda en chismes descubre el secreto; no te entremetas, pues, con el suelto de lengua.", r:"Proverbios 20:19" },
+    { t:"Como el hierro afila al hierro, así el hombre afila el rostro de su amigo.", r:"Proverbios 27:17" },
+    { t:"El que da al pobre no tendrá pobreza.", r:"Proverbios 28:27" },
+    { t:"La mentira aborrece Jehová, mas su comunión es con los rectos.", r:"Proverbios 3:32" },
+    // Eclesiastés
+    { t:"Vanidad de vanidades, todo es vanidad.", r:"Eclesiastés 1:2" },
+    { t:"Todo tiene su tiempo, y todo lo que se quiere debajo del cielo tiene su hora.", r:"Eclesiastés 3:1" },
+    { t:"También ha puesto la eternidad en el corazón del hombre.", r:"Eclesiastés 3:11" },
+    { t:"Mejor es el fin del negocio que su principio.", r:"Eclesiastés 7:8" },
+    { t:"Acuérdate de tu Creador en los días de tu juventud.", r:"Eclesiastés 12:1" },
+    { t:"Teme a Dios, y guarda sus mandamientos; porque esto es el todo del hombre.", r:"Eclesiastés 12:13" },
+    // Isaías
+    { t:"Venid luego, dice Jehová, y estemos a cuenta.", r:"Isaías 1:18" },
+    { t:"No temas, porque yo estoy contigo; no desmayes, porque yo soy tu Dios que te esfuerzo.", r:"Isaías 41:10" },
+    { t:"He aquí mi siervo, yo le sostendré.", r:"Isaías 42:1" },
+    { t:"Mas él herido fue por nuestras rebeliones, molido por nuestros pecados.", r:"Isaías 53:5" },
+    { t:"Todos nosotros nos descarriamos como ovejas, cada cual se apartó por su camino.", r:"Isaías 53:6" },
+    { t:"Venid a las aguas; y los que no tienen dinero, venid, comprad y comed.", r:"Isaías 55:1" },
+    { t:"Así como descienden el agua de la lluvia y la nieve del cielo, y no vuelven allá, así será mi palabra.", r:"Isaías 55:10-11" },
+    { t:"El lobo y el cordero serán apacentados juntos.", r:"Isaías 65:25" },
+    // Jeremías / Ezequiel / Daniel
+    { t:"Antes que te formase en el vientre te conocí.", r:"Jeremías 1:5" },
+    { t:"Maldito el hombre que confía en el hombre.", r:"Jeremías 17:5" },
+    { t:"Bendito el varón que confía en Jehová, y cuya confianza es Jehová.", r:"Jeremías 17:7" },
+    { t:"Porque yo sé los pensamientos que tengo acerca de vosotros, pensamientos de paz y no de mal.", r:"Jeremías 29:11" },
+    { t:"Me sedujiste, oh Jehová, y fui seducido; más fuerte fuiste que yo, y me venciste.", r:"Jeremías 20:7" },
+    { t:"Os daré corazón nuevo, y pondré espíritu nuevo dentro de vosotros.", r:"Ezequiel 36:26" },
+    { t:"Y os quitaré el corazón de piedra, y os daré un corazón de carne.", r:"Ezequiel 36:26" },
+    { t:"Muchos serán limpios, y blancos, y purificados.", r:"Daniel 12:10" },
+    // Oseas / Joel / Amós / Jonás / Miqueas
+    { t:"Misericordia quiero, y no sacrificio.", r:"Oseas 6:6" },
+    { t:"Convertíos a mí de todo corazón, con ayuno, y lloro, y lamentación.", r:"Joel 2:12" },
+    { t:"Corra el juicio como las aguas, y la justicia como impetuoso arroyo.", r:"Amós 5:24" },
+    { t:"¿Cómo dejaré a Israel? ¿Cómo te entregaré?", r:"Oseas 11:8" },
+    { t:"Oh hombre, él te ha declarado lo que es bueno, y qué pide Jehová de ti: solamente hacer justicia, y amar misericordia, y humillarte ante tu Dios.", r:"Miqueas 6:8" },
+    // Habacuc / Sofonías / Hageo / Zacarías / Malaquías
+    { t:"El justo por su fe vivirá.", r:"Habacuc 2:4" },
+    { t:"Aunque la higuera no florezca, ni en las vides haya frutos, con todo yo me alegraré en Jehová.", r:"Habacuc 3:17-18" },
+    { t:"Jehová está en medio de ti, poderoso, él salvará.", r:"Sofonías 3:17" },
+    { t:"No con ejército, ni con fuerza, sino con mi Espíritu, ha dicho Jehová.", r:"Zacarías 4:6" },
+    { t:"¿No es este el ayuno que yo escogí, que dejes libre al oprimido?", r:"Isaías 58:6" },
+    { t:"¿Robará el hombre a Dios? Pues vosotros me habéis robado.", r:"Malaquías 3:8" },
+    // Mateo
+    { t:"No solo de pan vivirá el hombre, sino de toda palabra que sale de la boca de Dios.", r:"Mateo 4:4" },
+    { t:"Bienaventurados los pobres en espíritu, porque de ellos es el reino de los cielos.", r:"Mateo 5:3" },
+    { t:"Bienaventurados los que lloran, porque ellos recibirán consolación.", r:"Mateo 5:4" },
+    { t:"Bienaventurados los mansos, porque ellos recibirán la tierra por heredad.", r:"Mateo 5:5" },
+    { t:"Bienaventurados los que tienen hambre y sed de justicia, porque ellos serán saciados.", r:"Mateo 5:6" },
+    { t:"Bienaventurados los misericordiosos, porque ellos alcanzarán misericordia.", r:"Mateo 5:7" },
+    { t:"Bienaventurados los de limpio corazón, porque ellos verán a Dios.", r:"Mateo 5:8" },
+    { t:"Vosotros sois la sal de la tierra; pero si la sal se desvaneciere, ¿con qué será salada?", r:"Mateo 5:13" },
+    { t:"Vosotros sois la luz del mundo; una ciudad asentada sobre un monte no se puede esconder.", r:"Mateo 5:14" },
+    { t:"Amad a vuestros enemigos, bendecid a los que os maldicen.", r:"Mateo 5:44" },
+    { t:"No os hagáis tesoros en la tierra, donde la polilla y el orín corrompen.", r:"Mateo 6:19" },
+    { t:"Donde está tu tesoro, allí estará también tu corazón.", r:"Mateo 6:21" },
+    { t:"Ninguno puede servir a dos señores.", r:"Mateo 6:24" },
+    { t:"No os afanéis por el día de mañana, porque el día de mañana traerá su afán.", r:"Mateo 6:34" },
+    { t:"Buscad primeramente el reino de Dios y su justicia, y todas estas cosas os serán añadidas.", r:"Mateo 6:33" },
+    { t:"No juzguéis, para que no seáis juzgados.", r:"Mateo 7:1" },
+    { t:"Con la medida con que medís, os será medido.", r:"Mateo 7:2" },
+    { t:"¿Y por qué miras la paja que está en el ojo de tu hermano?", r:"Mateo 7:3" },
+    { t:"No deis lo santo a los perros, ni echéis vuestras perlas delante de los cerdos.", r:"Mateo 7:6" },
+    { t:"Pedid, y se os dará; buscad, y hallaréis; llamad, y se os abrirá.", r:"Mateo 7:7" },
+    { t:"Todo aquel que oye estas palabras, y las hace, le compararé a un hombre prudente, que edificó su casa sobre la roca.", r:"Mateo 7:24" },
+    { t:"Venid a mí todos los que estáis trabajados y cargados, y yo os haré descansar.", r:"Mateo 11:28" },
+    { t:"El que no está conmigo, está contra mí.", r:"Mateo 12:30" },
+    { t:"De la abundancia del corazón habla la boca.", r:"Mateo 12:34" },
+    { t:"El que quiera venir en pos de mí, niéguese a sí mismo, y tome su cruz, y sígame.", r:"Mateo 16:24" },
+    { t:"¿De qué aprovechará al hombre, si ganare todo el mundo, y perdiere su alma?", r:"Mateo 16:26" },
+    { t:"Donde dos o tres están congregados en mi nombre, allí estoy yo en medio de ellos.", r:"Mateo 18:20" },
+    { t:"No te digo hasta siete, sino aun hasta setenta veces siete.", r:"Mateo 18:22" },
+    { t:"Dejad a los niños venir a mí, y no se lo impidáis; porque de los tales es el reino de los cielos.", r:"Mateo 19:14" },
+    { t:"Muchos son los llamados, mas pocos escogidos.", r:"Mateo 22:14" },
+    { t:"Amarás al Señor tu Dios con todo tu corazón, y con toda tu alma, y con toda tu mente.", r:"Mateo 22:37" },
+    { t:"Velad, pues, porque no sabéis el día ni la hora.", r:"Mateo 25:13" },
+    { t:"Porque tuve hambre, y me disteis de comer.", r:"Mateo 25:35" },
+    { t:"Id, y haced discípulos a todas las naciones.", r:"Mateo 28:19" },
+    // Marcos
+    { t:"El tiempo se ha cumplido, y el reino de Dios se ha acercado; arrepentíos, y creed en el evangelio.", r:"Marcos 1:15" },
+    { t:"El día de reposo fue hecho por causa del hombre, y no el hombre por causa del día de reposo.", r:"Marcos 2:27" },
+    { t:"¿Qué es más fácil, decir al paralítico: Tus pecados te son perdonados, o decirle: Levántate, toma tu lecho y anda?", r:"Marcos 2:9" },
+    { t:"El que quiera ser el primero, será el postrero de todos, y el servidor de todos.", r:"Marcos 9:35" },
+    { t:"¿Y qué aprovechará al hombre si ganare todo el mundo, y perdiere su alma?", r:"Marcos 8:36" },
+    // Lucas
+    { t:"Hoy os ha nacido un Salvador, que es Cristo el Señor.", r:"Lucas 2:11" },
+    { t:"El que es fiel en lo muy poco, también en lo más es fiel.", r:"Lucas 16:10" },
+    { t:"Ninguno que pone su mano en el arado y mira hacia atrás, es apto para el reino de Dios.", r:"Lucas 9:62" },
+    { t:"Gozaos y alegraos, porque vuestra recompensa es grande en los cielos.", r:"Lucas 6:23" },
+    { t:"¿Y quién de vosotros podrá, por mucho que se afane, añadir a su estatura un codo?", r:"Lucas 12:25" },
+    { t:"Donde está vuestro tesoro, allí estará también vuestro corazón.", r:"Lucas 12:34" },
+    { t:"Al que se le dio mucho, mucho se le demandará.", r:"Lucas 12:48" },
+    { t:"El que se enaltece será humillado, y el que se humilla será enaltecido.", r:"Lucas 14:11" },
+    { t:"Todos los publicanos y pecadores se acercaban a Jesús para oírle.", r:"Lucas 15:1" },
+    { t:"Padre, perdónalos, porque no saben lo que hacen.", r:"Lucas 23:34" },
+    // Juan
+    { t:"En el principio era el Verbo, y el Verbo era con Dios, y el Verbo era Dios.", r:"Juan 1:1" },
+    { t:"Y aquel Verbo fue hecho carne, y habitó entre nosotros.", r:"Juan 1:14" },
+    { t:"He aquí el Cordero de Dios, que quita el pecado del mundo.", r:"Juan 1:29" },
+    { t:"De tal manera amó Dios al mundo, que ha dado a su Hijo unigénito.", r:"Juan 3:16" },
+    { t:"No vino Dios a condenar al mundo, sino para que el mundo sea salvo por él.", r:"Juan 3:17" },
+    { t:"El que no naciere de nuevo, no puede ver el reino de Dios.", r:"Juan 3:3" },
+    { t:"El que bebiere del agua que yo le daré, no tendrá sed jamás.", r:"Juan 4:14" },
+    { t:"Dios es Espíritu; y los que le adoran, en espíritu y en verdad es necesario que adoren.", r:"Juan 4:24" },
+    { t:"Escudriñad las Escrituras; porque a vosotros os parece que en ellas tenéis la vida eterna.", r:"Juan 5:39" },
+    { t:"Yo soy el pan de vida; el que a mí viene, nunca tendrá hambre.", r:"Juan 6:35" },
+    { t:"Yo soy la luz del mundo; el que me sigue, no andará en tinieblas.", r:"Juan 8:12" },
+    { t:"Conoceréis la verdad, y la verdad os hará libres.", r:"Juan 8:32" },
+    { t:"Yo soy la puerta; el que por mí entrare, será salvo.", r:"Juan 10:9" },
+    { t:"Yo soy el buen pastor; el buen pastor su vida da por las ovejas.", r:"Juan 10:11" },
+    { t:"Yo soy la resurrección y la vida; el que cree en mí, aunque esté muerto, vivirá.", r:"Juan 11:25" },
+    { t:"Yo soy el camino, y la verdad, y la vida; nadie viene al Padre, sino por mí.", r:"Juan 14:6" },
+    { t:"Os doy un mandamiento nuevo: que os améis unos a otros.", r:"Juan 13:34" },
+    { t:"La paz os dejo, mi paz os doy; yo no os la doy como el mundo la da.", r:"Juan 14:27" },
+    { t:"Yo soy la vid, vosotros los pámpanos; el que permanece en mí, y yo en él, éste lleva mucho fruto.", r:"Juan 15:5" },
+    { t:"Nadie tiene mayor amor que este, que uno ponga su vida por sus amigos.", r:"Juan 15:13" },
+    { t:"En el mundo tendréis aflicción; pero confiad, yo he vencido al mundo.", r:"Juan 16:33" },
+    { t:"Santifícalos en tu verdad; tu palabra es verdad.", r:"Juan 17:17" },
+    { t:"Bienaventurados los que no vieron, y creyeron.", r:"Juan 20:29" },
+    // Hechos
+    { t:"Recibiréis poder, cuando haya venido sobre vosotros el Espíritu Santo.", r:"Hechos 1:8" },
+    { t:"Arrepiéntete, y bautícese cada uno de vosotros en el nombre de Jesucristo.", r:"Hechos 2:38" },
+    { t:"En ningún otro hay salvación; porque no hay otro nombre bajo el cielo, dado a los hombres, en que podamos ser salvos.", r:"Hechos 4:12" },
+    { t:"Es necesario obedecer a Dios antes que a los hombres.", r:"Hechos 5:29" },
+    { t:"Más bienaventurado es dar que recibir.", r:"Hechos 20:35" },
+    // Romanos
+    { t:"No me avergüenzo del evangelio, porque es poder de Dios para salvación.", r:"Romanos 1:16" },
+    { t:"La paga del pecado es muerte, mas la dádiva de Dios es vida eterna.", r:"Romanos 6:23" },
+    { t:"Todos pecaron, y están destituidos de la gloria de Dios.", r:"Romanos 3:23" },
+    { t:"Donde abundó el pecado, sobreabundó la gracia.", r:"Romanos 5:20" },
+    { t:"A los que aman a Dios, todas las cosas les ayudan a bien.", r:"Romanos 8:28" },
+    { t:"Si Dios es por nosotros, ¿quién contra nosotros?", r:"Romanos 8:31" },
+    { t:"No os conforméis a este siglo, sino transformaos por medio de la renovación de vuestro entendimiento.", r:"Romanos 12:2" },
+    { t:"De gracia recibisteis, dad de gracia.", r:"Romanos 12:6" },
+    { t:"No seas vencido de lo malo, sino vence con el bien el mal.", r:"Romanos 12:21" },
+    { t:"El amor no hace mal al prójimo; así que el cumplimiento de la ley es el amor.", r:"Romanos 13:10" },
+    { t:"Todo lo que no proviene de fe, es pecado.", r:"Romanos 14:23" },
+    // 1 y 2 Corintios
+    { t:"La palabra de la cruz es locura a los que se pierden; pero a los que se salvan, es poder de Dios.", r:"1 Corintios 1:18" },
+    { t:"El amor es sufrido, es benigno; el amor no tiene envidia.", r:"1 Corintios 13:4" },
+    { t:"Ahora vemos por espejo, oscuramente; mas entonces veremos cara a cara.", r:"1 Corintios 13:12" },
+    { t:"Si Cristo no resucitó, vuestra fe es vana.", r:"1 Corintios 15:17" },
+    { t:"Dios escogió lo necio del mundo, para avergonzar a los sabios.", r:"1 Corintios 1:27" },
+    { t:"¿No sabéis que sois templo de Dios, y que el Espíritu de Dios mora en vosotros?", r:"1 Corintios 3:16" },
+    { t:"Todo me es lícito, pero no todo conviene.", r:"1 Corintios 6:12" },
+    { t:"Huid de la fornicación.", r:"1 Corintios 6:18" },
+    { t:"El que se gloría, gloríese en el Señor.", r:"1 Corintios 1:31" },
+    { t:"Bástate mi gracia; porque mi poder se perfecciona en la debilidad.", r:"2 Corintios 12:9" },
+    { t:"Si alguno está en Cristo, nueva criatura es.", r:"2 Corintios 5:17" },
+    { t:"Dios ama al dador alegre.", r:"2 Corintios 9:7" },
+    // Gálatas / Efesios / Filipenses / Colosenses
+    { t:"Estad firmes en la libertad con que Cristo nos hizo libres.", r:"Gálatas 5:1" },
+    { t:"El fruto del Espíritu es amor, gozo, paz, paciencia, benignidad, bondad, fe.", r:"Gálatas 5:22" },
+    { t:"No nos cansemos de hacer el bien, porque a su tiempo segaremos.", r:"Gálatas 6:9" },
+    { t:"Por gracia sois salvos por medio de la fe; y esto no de vosotros, pues es don de Dios.", r:"Efesios 2:8" },
+    { t:"Somos hechura suya, creados en Cristo Jesús para buenas obras.", r:"Efesios 2:10" },
+    { t:"No os embriaguéis con vino, sino sed llenos del Espíritu.", r:"Efesios 5:18" },
+    { t:"Maridos, amad a vuestras mujeres, así como Cristo amó a la iglesia.", r:"Efesios 5:25" },
+    { t:"Nuestra lucha no es contra sangre y carne, sino contra principados y potestades.", r:"Efesios 6:12" },
+    { t:"Todo lo puedo en Cristo que me fortalece.", r:"Filipenses 4:13" },
+    { t:"Por nada estéis afanosos, sino sean conocidas vuestras peticiones delante de Dios.", r:"Filipenses 4:6" },
+    { t:"La paz de Dios, que sobrepasa todo entendimiento, guardará vuestros corazones.", r:"Filipenses 4:7" },
+    { t:"Haya, pues, en vosotros este sentir que hubo también en Cristo Jesús.", r:"Filipenses 2:5" },
+    { t:"Todo lo que hacéis, hacedlo de corazón, como para el Señor.", r:"Colosenses 3:23" },
+    // 1 y 2 Tesalonicenses / Timoteo / Tito / Hebreos
+    { t:"Orad sin cesar.", r:"1 Tesalonicenses 5:17" },
+    { t:"Dad gracias en todo, porque esta es la voluntad de Dios para con vosotros.", r:"1 Tesalonicenses 5:18" },
+    { t:"La raíz de todos los males es el amor al dinero.", r:"1 Timoteo 6:10" },
+    { t:"Ninguno tenga en poco tu juventud, sino sé ejemplo de los creyentes.", r:"1 Timoteo 4:12" },
+    { t:"No nos ha dado Dios espíritu de cobardía, sino de poder, de amor y de dominio propio.", r:"2 Timoteo 1:7" },
+    { t:"Toda la Escritura es inspirada por Dios, y útil para enseñar, para redargüir, para corregir.", r:"2 Timoteo 3:16" },
+    { t:"He peleado la buena batalla, he acabado la carrera, he guardado la fe.", r:"2 Timoteo 4:7" },
+    { t:"La gracia de Dios se ha manifestado para salvación a todos los hombres.", r:"Tito 2:11" },
+    { t:"La fe es la certeza de lo que se espera, la convicción de lo que no se ve.", r:"Hebreos 11:1" },
+    { t:"Sin fe es imposible agradar a Dios.", r:"Hebreos 11:6" },
+    { t:"Considerémonos unos a otros para estimularnos al amor y a las buenas obras.", r:"Hebreos 10:24" },
+    { t:"Jesucristo es el mismo ayer, y hoy, y por los siglos.", r:"Hebreos 13:8" },
+    // Santiago / Pedro / Juan / Judas / Apocalipsis
+    { t:"La fe sin obras es muerta.", r:"Santiago 2:26" },
+    { t:"La lengua es un fuego, un mundo de maldad.", r:"Santiago 3:6" },
+    { t:"Acercaos a Dios, y él se acercará a vosotros.", r:"Santiago 4:8" },
+    { t:"Toda buena dádiva y todo don perfecto descienden de lo alto.", r:"Santiago 1:17" },
+    { t:"Dios resiste a los soberbios, y da gracia a los humildes.", r:"1 Pedro 5:5" },
+    { t:"Echando toda vuestra ansiedad sobre él, porque él tiene cuidado de vosotros.", r:"1 Pedro 5:7" },
+    { t:"Dios es amor; y el que permanece en amor, permanece en Dios, y Dios en él.", r:"1 Juan 4:16" },
+    { t:"El que no ama, no ha conocido a Dios; porque Dios es amor.", r:"1 Juan 4:8" },
+    { t:"Si confesamos nuestros pecados, él es fiel y justo para perdonar nuestros pecados.", r:"1 Juan 1:9" },
+    { t:"No améis al mundo, ni las cosas que están en el mundo.", r:"1 Juan 2:15" },
+    { t:"Contended ardientemente por la fe que ha sido una vez dada a los santos.", r:"Judas 1:3" },
+    { t:"He aquí, yo estoy a la puerta y llamo; si alguno oye mi voz y abre la puerta, entraré.", r:"Apocalipsis 3:20" },
+    { t:"Enjugará Dios toda lágrima de los ojos de ellos; y ya no habrá muerte.", r:"Apocalipsis 21:4" },
+    { t:"He aquí, yo hago nuevas todas las cosas.", r:"Apocalipsis 21:5" },
+    { t:"Yo soy el Alfa y la Omega, el principio y el fin.", r:"Apocalipsis 22:13" }
+  ];
+
+  const card = document.getElementById("card");
+  const btn = document.getElementById("btn");
+  const btnRef = document.getElementById("btnRef");
+  const progreso = document.getElementById("progreso");
+
+  let refsVisibles = false;
+  let cola = [];
+
+  function shuffle(arr){
+    const copia = [...arr];
+    for(let i = copia.length - 1; i > 0; i--){
+      const j = Math.floor(Math.random() * (i + 1));
+      [copia[i], copia[j]] = [copia[j], copia[i]];
+    }
+    return copia;
+  }
+
+  function sacarUno(){
+    if(cola.length === 0) cola = shuffle(VERSICULOS);
+    return cola.pop();
+  }
+
+  function actualizarProgreso(){
+    progreso.textContent = `Quedan sin repetir: ${cola.length}/${VERSICULOS.length}`;
+  }
+
+  function tirar(){
+    const item = sacarUno();
+
+    card.classList.remove("pop");
+    void card.offsetWidth;
+
+    card.querySelector(".contenido").textContent = "«" + item.t + "»";
+    const ref = card.querySelector(".ref");
+    ref.textContent = item.r;
+    ref.classList.toggle("oculta", !refsVisibles);
+
+    card.classList.add("pop");
+    actualizarProgreso();
+  }
+
+  btn.addEventListener("click", tirar);
+
+  btnRef.addEventListener("click", () => {
+    refsVisibles = !refsVisibles;
+    card.querySelector(".ref").classList.toggle("oculta", !refsVisibles);
+    btnRef.textContent = refsVisibles ? "Ocultar referencia" : "Mostrar referencia";
+  });
+
+  tirar();
+</script>
+
+</body>
+</html>
